@@ -8,7 +8,6 @@ sys.path.append(os.path.abspath('../'))
 
 
 class App:
-
     def __init__(self, login_page, select_brawler_page, pyla_main, brawlers, hub_menu):
         self.login = login_page
         self.select_brawler = select_brawler_page

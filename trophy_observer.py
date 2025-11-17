@@ -4,6 +4,8 @@ import requests
 from difflib import SequenceMatcher
 import numpy as np
 from easyocr import easyocr
+
+from state_finder.main import crop_region
 from utils import update_toml_file, load_toml_as_dict, save_dict_as_toml, api_base_url
 
 
@@ -31,6 +33,9 @@ class TrophyObserver:
                                   (1000, 1049, 85), (1050, 1099, 90), (1100, 1149, 95), (1150, float('inf'), 100)]
 
         self.crop_region = load_toml_as_dict("./cfg/lobby_config.toml")['lobby']['trophy_observer']
+        print('cr 1', crop_region)
+        self.crop_region = [x * 2 for x in crop_region]
+        print('cr 2', crop_region)
         self.reader = easyocr.Reader(['en'])
         self.mastery_madness_percentage = int(load_toml_as_dict("./cfg/general_config.toml")["mastery_madness"])
         self.trophies_multiplier = int(load_toml_as_dict("./cfg/general_config.toml")["trophies_multiplier"])

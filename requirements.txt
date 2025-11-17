@@ -13,6 +13,6 @@ pillow
 discord.py
 easyocr
 shapely
-ultralytics
+ultralytics==8.2.31
 bettercam
 packaging

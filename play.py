@@ -13,14 +13,9 @@ from utils import load_toml_as_dict, count_hsv_pixels
 pyautogui.PAUSE = 0
 
 TILE_SIZE = 70
-orig_screen_width, orig_screen_height = 1920, 1080
-width, height = pyautogui.size()
-width_ratio = width / orig_screen_width
-height_ratio = height / orig_screen_height
-scale_factor = min(width_ratio, height_ratio)
+
 
 class Movement:
-
     def __init__(self):
         self.fix_movement_keys = {
             "delay_to_trigger": load_toml_as_dict("cfg/bot_config.toml")["unstuck_movement_delay"],
@@ -30,7 +25,8 @@ class Movement:
             "fixed": ""
         }
         self.game_mode = load_toml_as_dict("cfg/bot_config.toml")["gamemode_type"]
-        self.should_use_gadget = load_toml_as_dict("cfg/bot_config.toml")["bot_uses_gadgets"] == "yes" or load_toml_as_dict("cfg/bot_config.toml")["bot_uses_gadgets"] == "true"
+        self.should_use_gadget = load_toml_as_dict("cfg/bot_config.toml")["bot_uses_gadgets"] == "yes" or \
+                                 load_toml_as_dict("cfg/bot_config.toml")["bot_uses_gadgets"] == "true"
         self.gadget_treshold = load_toml_as_dict("cfg/time_tresholds.toml")["gadget"]
         self.hypercharge_treshold = load_toml_as_dict("cfg/time_tresholds.toml")["hypercharge"]
         self.walls_treshold = load_toml_as_dict("cfg/time_tresholds.toml")["wall_detection"]
@@ -42,7 +38,6 @@ class Movement:
         self.is_gadget_ready = False
         self.time_since_hypercharge_checked = time.time()
         self.is_hypercharge_ready = False
-
 
     @staticmethod
     def get_enemy_pos(enemy):
@@ -135,7 +130,6 @@ class Movement:
 
 
 class Play(Movement):
-
     def __init__(self, main_info_model, specific_info_model, starting_screen_model, tile_detector_model):
         super().__init__()
 
@@ -193,7 +187,8 @@ class Play(Movement):
         self.wall_history = []
         self.wall_history_length = 3  # Number of frames to keep walls
         self.scene_data = []
-        self.should_detect_walls = load_toml_as_dict("cfg/bot_config.toml")["gamemode"] in ["brawlball", "brawl_ball", "brawll ball"]
+        self.should_detect_walls = load_toml_as_dict("cfg/bot_config.toml")["gamemode"] in ["brawlball", "brawl_ball",
+                                                                                            "brawll ball"]
         self.minimum_movement_delay = load_toml_as_dict("cfg/bot_config.toml")["minimum_movement_delay"]
         self.no_detection_proceed_delay = load_toml_as_dict("cfg/time_tresholds.toml")["no_detection_proceed"]
         self.gadget_pixels_minimum = load_toml_as_dict("cfg/bot_config.toml")["gadget_pixels_minimum"]
@@ -240,7 +235,7 @@ class Play(Movement):
             for move in alternative_moves:
                 if not self.is_path_blocked(player_position, move, walls):
                     return move
-            print("no movement possible ?")
+            print("No movement possible?")
             # If no movement is possible, return empty string
             return preferred_movement
 
@@ -351,18 +346,19 @@ class Play(Movement):
         return movement
 
     def check_if_hypercharge_ready(self, frame):
-        screenshot = frame.crop((1280 * width_ratio, 890 * height_ratio, 1400 * width_ratio, 1000 * height_ratio))
+        screenshot = frame.crop((1080 * 2, 810 * 2, 1150 * 2, 880 * 2))  #c
         purple_pixels = count_hsv_pixels(screenshot, (137, 158, 159), (179, 255, 255))
 
         if purple_pixels > self.hypercharge_pixels_minimum:
-            # print("hyper charge ready", purple_pixels)
+            print("Hyper charge ready", purple_pixels)
             return True
         return False
 
     def check_if_gadget_ready(self, frame):
-        screenshot = frame.crop((1500 * width_ratio, 880 * height_ratio, 1630 * width_ratio, 1020 * height_ratio))
+        screenshot = frame.crop((1250 * 2, 810 * 2, 1320 * 2, 880 * 2))  #c
         green_pixels = count_hsv_pixels(screenshot, (57, 219, 165), (62, 255, 255))
         if green_pixels > self.gadget_pixels_minimum:
+            print('Gadget ready', green_pixels)
             return True
         return False
 
@@ -395,7 +391,7 @@ class Play(Movement):
         threshold = 1
 
         combined_walls = [list(wall) for wall, count in wall_counts.items() if count >= threshold]
-        # print(f"Combined walls: {combined_walls}")
+        print(f"Combined walls: {combined_walls}")
 
         return combined_walls
 
@@ -464,7 +460,7 @@ class Play(Movement):
                 self.time_since_hypercharge_checked = time.time()
                 self.is_hypercharge_ready = False
             enemy_hittable = self.is_enemy_hittable(player_pos, enemy_coords, walls)
-            # print("enemy hittable", enemy_hittable, "enemy_distance", enemy_distance)
+            print("enemy hittable", enemy_hittable, "enemy_distance", enemy_distance)
             if enemy_hittable:
                 self.attack()
 
@@ -473,6 +469,7 @@ class Play(Movement):
     def main(self, frame, brawler):
         current_time = time.time()
         data = self.get_main_data(frame)
+        print("Main data detected:", data)
         if self.should_detect_walls and current_time - self.time_since_walls_checked > self.walls_treshold:
 
             tile_data = self.get_tile_data(frame)
@@ -484,7 +481,6 @@ class Play(Movement):
             data['wall'] = walls
         elif self.keep_walls_in_memory:
             data['wall'] = self.last_walls_data
-
 
         data = self.validate_game_data(data)
         self.track_no_detections(data)
@@ -498,7 +494,7 @@ class Play(Movement):
                 if current_state != "match":
                     self.time_since_last_proceeding = current_time
                 else:
-                    print("haven't detected the player in a while proceeding")
+                    print("Haven't detected the player in a while - proceeding")
                     pyautogui.press("q")
                     self.time_since_last_proceeding = time.time()
             return
@@ -523,6 +519,7 @@ class Play(Movement):
                 'wall': data.get('wall', []),
                 'movement': movement,
             })
+            self.generate_visualization()
 
     def generate_visualization(self, output_filename='visualization.mp4'):
         import cv2
@@ -582,6 +579,7 @@ class Play(Movement):
             # Write frame to video
             out.write(img)
 
+        print('Visualization generated.')
         out.release()
 
     @staticmethod

@@ -2,7 +2,7 @@ import hashlib
 import io
 import os
 from io import BytesIO
-import ctypes
+from pynput.mouse import Controller, Button
 import json
 import aiohttp
 import requests
@@ -15,12 +15,14 @@ import cv2
 import numpy as np
 from PIL import Image
 from packaging import version
-import bettercam
+import mss
 import time
 
 reader = easyocr.Reader(['en'])  # Assuming English text, you can modify the list to include other languages.
 
+mouse = Controller()
 api_base_url = "localhost"
+
 
 def extract_text_and_positions(image_path):
     results = reader.readtext(image_path)
@@ -43,25 +45,16 @@ def extract_text_and_positions(image_path):
     return text_details
 
 
-class ScreenshotTaker: #breaks if you alt tab, and idk how to fix it
-
-    def __init__(self, camera):
-        self.camera = camera
+class ScreenshotTaker:
+    def __init__(self):
+        self.sct = mss.mss()
 
     def take(self):
-        try:
-            image = self.camera.grab()
-        except Exception as e:
-            print(f"Error capturing screenshot: {e}")
-            image = None
-        if image is not None:
-            image = Image.fromarray(image)
-
+        image = None
         while image is None:
             try:
-                image = self.camera.grab()
-                if image is not None:
-                    image = Image.fromarray(image)
+                sct_img = self.sct.grab(self.sct.monitors[0])
+                image = Image.fromarray(np.array(sct_img))
             except Exception as e:
                 print(f"Error capturing screenshot: {e}")
                 image = None
@@ -75,13 +68,13 @@ def count_hsv_pixels(pil_image, low_hsv, high_hsv):
     pixel_count = np.count_nonzero(mask)
     return pixel_count
 
+
 def save_brawler_data(data):
     """
     Save the given data to a json file. As a list of dictionaries.
     """
     with open("latest_brawler_data.json", 'w') as f:
         json.dump(data, f, indent=4)
-
 
 
 def find_template_center(main_img, template):
@@ -135,7 +128,8 @@ def get_brawler_list():
                 'hank', 'jacky', 'janet', 'jessie', 'kit', 'larrylawrie', 'leon', 'lily', 'lola', 'lou',
                 'maisie', 'mandy', 'max', 'meg', 'melodie', 'mico', 'mortis', 'mrp', 'nani', 'nita', 'otis',
                 'pam', 'pearl', 'penny', 'piper', 'poco', 'rt', 'rico', 'rosa', 'ruffs', 'sam', 'sandy',
-                'shelly', 'spike', 'sprout', 'squeak', 'stu', 'surge', 'tara', 'tick', 'willow', 'moe', 'kenji', "juju", "shade", "ollie", "meeple", "finx", "lumi", "kaze", "jaeyong", "alli"]
+                'shelly', 'spike', 'sprout', 'squeak', 'stu', 'surge', 'tara', 'tick', 'willow', 'moe', 'kenji', "juju",
+                "shade", "ollie", "meeple", "finx", "lumi", "kaze", "jaeyong", "alli"]
     url = f'https://{api_base_url}/get_brawler_list'
     response = requests.post(url)
     if response.status_code == 201:
@@ -217,13 +211,13 @@ def update_icons():
         else:
             print(f"Failed to download {icon_name}. Status code: {response.status_code}")
 
+
 def click(x, y):
     x = int(x)
     y = int(y)
-    #clicks without using pyautogui
-    ctypes.windll.user32.SetCursorPos(x, y)
-    ctypes.windll.user32.mouse_event(2, 0, 0, 0, 0)  # left down
-    ctypes.windll.user32.mouse_event(4, 0, 0, 0, 0)  # left up
+    mouse.position = (x, y)
+    mouse.click(Button.left, 1)
+
 
 def get_latest_version():
     url = f'https://{api_base_url}/check_version'
@@ -234,15 +228,18 @@ def get_latest_version():
     else:
         return None
 
+
 def check_version():
     if api_base_url != "localhost":
         latest_version = get_latest_version()
         if latest_version:
             current_version = load_toml_as_dict("cfg/general_config.toml").get('pyla_version', '')
             if version.parse(current_version) < version.parse(latest_version):
-                print(f"Warning: (ignore if you're using early access) You are not using the latest public version of Pyla. \nCheck the discord for the latest download link.")
+                print(
+                    f"Warning: (ignore if you're using early access) You are not using the latest public version of Pyla. \nCheck the discord for the latest download link.")
         else:
-            print("Error, couldn't get the version, please check your internet connection or go ask for help in the discord.")
+            print(
+                "Error, couldn't get the version, please check your internet connection or go ask for help in the discord.")
 
 
 async def async_notify_user(message_type: str | None = None, screenshot: Image = None) -> None:
@@ -269,14 +266,15 @@ async def async_notify_user(message_type: str | None = None, screenshot: Image =
 
     # Build the embed that holds both the text and the screenshot
     embed = discord.Embed(description=status_line)
-    embed.set_image(url="attachment://screenshot.png")   # show the attached screenshot
+    embed.set_image(url="attachment://screenshot.png")  # show the attached screenshot
 
     # Send the embed
     async with aiohttp.ClientSession() as session:
         webhook = Webhook.from_url(webhook_url, session=session)
         print("sending webhook")
         await webhook.send(embed=embed, file=file, username="Pyla notifier", content=ping)
-        
+
+
 def get_discord_link():
     if api_base_url == "localhost":
         return "https://discord.gg/xUusk3fw4A"
@@ -288,6 +286,7 @@ def get_discord_link():
     else:
         return None
 
+
 def get_online_wall_model_hash():
     url = f'https://{api_base_url}/get_wall_model_hash'
     response = requests.get(url)
@@ -296,6 +295,7 @@ def get_online_wall_model_hash():
         return data.get('hash', '')
     else:
         return None
+
 
 def calculate_sha256(file_path):
     """
@@ -308,6 +308,7 @@ def calculate_sha256(file_path):
             sha256_hash.update(chunk)
     return sha256_hash.hexdigest()
 
+
 def current_wall_model_is_latest() -> bool:
     """
     Check if the current wall model is the latest version.
@@ -315,6 +316,7 @@ def current_wall_model_is_latest() -> bool:
     local_hash = calculate_sha256("models/tileDetector.onnx")
     online_hash = get_online_wall_model_hash()
     return local_hash == online_hash
+
 
 def get_latest_wall_model_file():
     #download the new model to replace the current file and also updates the tile list
@@ -327,6 +329,7 @@ def get_latest_wall_model_file():
     else:
         print(f"Failed to download the latest wall model. Status code: {response.status_code}")
 
+
 def get_latest_wall_model_classes():
     url = f'https://{api_base_url}/get_wall_model_classes'
     response = requests.get(url)
@@ -335,6 +338,7 @@ def get_latest_wall_model_classes():
         return data.get('classes', [])
     else:
         return None
+
 
 def update_wall_model_classes():
     classes = get_latest_wall_model_classes()
@@ -348,10 +352,10 @@ def update_wall_model_classes():
         print("Failed to update the wall model classes, please report this error.")
 
 
-def cprint(text: str, hex_color: str): #omg color!!!
+def cprint(text: str, hex_color: str):  #omg color!!!
     try:
         hex_color = hex_color.lstrip("#")
-        r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        r, g, b = tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
         print(f"\033[38;2;{r};{g};{b}m{text}\033[0m")
     except Exception:
         print(text)

@@ -1,12 +1,9 @@
-import threading
-from queue import Queue, Full, Empty
 import asyncio
-import ctypes
 import threading
 import time
 from queue import Queue, Full, Empty
 
-import bettercam
+import mss
 import pyautogui
 import pygetwindow
 
@@ -25,10 +22,9 @@ from utils import get_brawler_list, update_missing_brawler_ranges, update_icons,
 
 pyla_version = load_toml_as_dict("./cfg/general_config.toml")['pyla_version']
 chosen_monitor = int(load_toml_as_dict("./cfg/general_config.toml")['monitor'])
-camera = bettercam.create(device_idx=chosen_monitor)
 frame_lock = threading.Lock()
 frame_available = threading.Event()
-Screenshot = ScreenshotTaker(camera)
+Screenshot = ScreenshotTaker()
 frame_queue = Queue(maxsize=1)
 debug = load_toml_as_dict("cfg/general_config.toml")['super_debug'] == "yes"
 
@@ -60,7 +56,7 @@ def pyla_main(data):
             self.Stage_manager = StageManager(Screenshot, data, frame_queue)
             self.states_requiring_data = ["play_store", "brawl_stars_crashed", "lobby"]
             if data[0]['automatically_pick']:
-                if debug: print("Picking brawler automatically")
+                print("Picking brawler automatically")
                 self.lobby_automator.select_brawler(data[0]['brawler'])
             self.Play.current_brawler = data[0]['brawler']
             self.no_detections_action_threshold = 60 * 8
@@ -118,10 +114,10 @@ def pyla_main(data):
                         self.restart_brawl_stars()
 
             if self.Time_management.idle_check():
-                print("check for idle!")
+                print("Checking for idle!")
                 self.lobby_automator.check_for_idle(frame)
 
-        def main(self): #this is for timer to stop after time
+        def main(self):  # this is for timer to stop after time
             s_time = time.time()
             c = 0
             while True:
@@ -129,14 +125,15 @@ def pyla_main(data):
                 if self.run_for_minutes > 0 and not self.in_cooldown:
                     elapsed_time = (time.time() - self.start_time) / 60
                     if elapsed_time >= self.run_for_minutes:
-                        cprint(f"timer is done, {self.run_for_minutes} is over. continuing for 3 minutes if in game", "#AAE5A4")
-                        self.in_cooldown = True # tries to finish game if in game
+                        cprint(f"Timer is done, {self.run_for_minutes} is over. continuing for 3 minutes if in game",
+                               "#AAE5A4")
+                        self.in_cooldown = True  # tries to finish game if in game
                         self.cooldown_start_time = time.time()
                         self.Stage_manager.states['lobby'] = lambda data: 0
 
                 if self.in_cooldown:
                     if time.time() - self.cooldown_start_time >= self.cooldown_duration:
-                        cprint("stopping bot fully", "#AAE5A4")
+                        cprint("Stopping bot fully", "#AAE5A4")
                         break
 
                 if abs(s_time - time.time()) > 1:
@@ -167,7 +164,7 @@ def pyla_main(data):
                         time.sleep(time_per_frame - elapsed_time)
 
     try:
-        window = pygetwindow.getWindowsWithTitle('LDPlayer')[0]
+        window = pygetwindow.getWindowsWithTitle('BlueStacks')[0]
 
         if window.isMinimized:
             window.restore()
@@ -180,23 +177,16 @@ def pyla_main(data):
         window.maximize()
     except:
         print(
-            "Couldn't find LDPlayer window. Using another emulator isn't recommended and can lead to unexpected issues.")
+            "Couldn't find BlueStacks window. Using another emulator isn't recommended and can lead to unexpected issues.")
 
     main = Main(
-        lobby_automator=LobbyAutomation(camera, frame_queue)
+        lobby_automator=LobbyAutomation(frame_queue)
     )
     main.main()
     return width, height
 
 
 width, height = pyautogui.size()
-if width > 1920:
-    print(
-        "⚠️Warning:⚠️ Screen resolution is higher 1920x1080. This might cause major issues. Please lower your resolution to 1920x1080 in computer settings (Display Settings), NOT LDPlayer settings. ⚠️⚠️⚠️")
-
-orig_screen_width, orig_screen_height = 1920, 1080
-width_ratio = width / orig_screen_width
-height_ratio = height / orig_screen_height
 
 all_brawlers = get_brawler_list()
 if api_base_url != "localhost":
@@ -209,14 +199,6 @@ if api_base_url != "localhost":
             "New Wall detection model found, downloading... (this might take a few minutes depending on your internet speed)")
         get_latest_wall_model_file()
 
-# check if the zoom is 100%
-user32 = ctypes.windll.user32
-user32.SetProcessDPIAware()
-dpi_scale = int(user32.GetDpiForSystem())
-if dpi_scale != 96:
-    print("⚠️⚠️⚠️ Warning ⚠️⚠️⚠️\nScreen's zoom isn't 100%. \nPlease change your Zoom to 100% in your windows settings (just above the display resolution). \nOtherwise there will be unexpected problems (don't hesitate to ask for support in the discord server.")
-
 # Use the smaller ratio to maintain aspect ratio
-scale_factor = min(width_ratio, height_ratio)
 app = App(login, SelectBrawler, pyla_main, all_brawlers, Hub)
 app.start(capture_thread, pyla_version, get_latest_version)

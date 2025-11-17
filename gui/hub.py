@@ -7,7 +7,7 @@ import time
 import pyautogui
 from PIL import Image
 import tkinter as tk
-import bettercam
+import mss
 from utils import load_toml_as_dict, save_dict_as_toml, get_discord_link
 
 orig_screen_width, orig_screen_height = 1920, 1080
@@ -15,7 +15,7 @@ width, height = pyautogui.size()
 width_ratio = width / orig_screen_width
 height_ratio = height / orig_screen_height
 scale_factor = min(width_ratio, height_ratio)
-monitors = [str(e) for e in list(range(len(bettercam.__factory.outputs)))]
+monitors = [str(i) for i in range(1, len(mss.mss().monitors))]
 
 
 def S(value):
@@ -388,16 +388,11 @@ class Hub:
         self.emulator_frame.grid(row=row_, column=0, columnspan=2, pady=S(10))
         row_ += 1
 
-        self.emu_var = tk.StringVar(value="LDPlayer")  # default
+        self.emu_var = tk.StringVar(value="BlueStacks")  # default
 
         def handle_emulator_choice(choice):
             self.emu_var.set(choice)
-            if choice in ["BlueStacks", "Others"]:
-                self.general_config["check_if_brawl_stars_crashed"] = "no"
-            else:
-                # If user selects LDPlayer, we can keep crash detection as is or set it to "yes"
-                # (Comment out if you want it unchanged)
-                self.general_config["check_if_brawl_stars_crashed"] = "yes"
+            self.general_config["check_if_brawl_stars_crashed"] = "no"
             save_dict_as_toml(self.general_config, self.general_config_path)
             refresh_emu_buttons()
 
@@ -416,11 +411,9 @@ class Hub:
             )
             return btn
 
-        self.btn_ldplayer = create_emu_button(self.emulator_frame, "LDPlayer")
         self.btn_bluestacks = create_emu_button(self.emulator_frame, "BlueStacks")
         self.btn_others = create_emu_button(self.emulator_frame, "Others")
 
-        self.btn_ldplayer.grid(row=0, column=0, padx=S(10), pady=S(5))
         self.btn_bluestacks.grid(row=0, column=1, padx=S(10), pady=S(5))
         self.btn_others.grid(row=0, column=2, padx=S(10), pady=S(5))
 
@@ -433,7 +426,6 @@ class Hub:
                 else:
                     btn.configure(fg_color="#333333", hover_color="#BB3A3A")
 
-            color(self.btn_ldplayer, "LDPlayer")
             color(self.btn_bluestacks, "BlueStacks")
             color(self.btn_others, "Others")
 

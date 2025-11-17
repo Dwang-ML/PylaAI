@@ -54,8 +54,8 @@ def load_image(image_path):
     resized_image = cv2.resize(image, (new_width, new_height))
     return resized_image
 
-class StageManager:
 
+class StageManager:
     def __init__(self, screenshot_taker, brawlers_data, frame_queue):
         self.Screenshot = screenshot_taker
         self.states = {
@@ -69,7 +69,7 @@ class StageManager:
             "brawl_stars_crashed": self.start_brawl_stars,
             'star_drop': self.click_star_drop
         }
-        self.Lobby_automation = LobbyAutomation(screenshot_taker.camera, frame_queue)
+        self.Lobby_automation = LobbyAutomation(frame_queue)
         self.lobby_config = load_toml_as_dict("./cfg/lobby_config.toml")
         self.brawl_stars_icon = load_image("state_finder/images_to_detect/brawl_stars_icon.png")
         self.brawl_stars_icon_big = load_image("state_finder/images_to_detect/brawl_stars_icon_big.png")
@@ -90,7 +90,8 @@ class StageManager:
                 pyautogui.click(x, y)
                 return
 
-        x, y = self.lobby_config['lobby']['brawl_stars_icon'][0]*width_ratio, self.lobby_config['lobby']['brawl_stars_icon'][1]*height_ratio
+        x, y = self.lobby_config['lobby']['brawl_stars_icon'][0] * width_ratio, \
+               self.lobby_config['lobby']['brawl_stars_icon'][1] * height_ratio
         pyautogui.click(x, y)
 
     @staticmethod
@@ -137,11 +138,12 @@ class StageManager:
             loop.close()
             self.brawlers_pick_data.pop(0)
             self.Trophy_observer.change_trophies(self.brawlers_pick_data[0]['trophies'])
-            self.Trophy_observer.current_mastery = self.brawlers_pick_data[0]['mastery'] if self.brawlers_pick_data[0]['mastery'] != "" else -99999
+            self.Trophy_observer.current_mastery = self.brawlers_pick_data[0]['mastery'] if self.brawlers_pick_data[0][
+                                                                                                'mastery'] != "" else -99999
             self.Trophy_observer.win_streak = self.brawlers_pick_data[0]['win_streak']
             next_brawler_name = self.brawlers_pick_data[0]['brawler']
             if self.brawlers_pick_data[0]["automatically_pick"]:
-                if debug: print("Picking next automatically picked brawler")
+                print("Picking next automatically picked brawler.")
                 try:
                     screenshot = self.frame_queue.get(timeout=1)
                 except Empty:
@@ -152,7 +154,7 @@ class StageManager:
 
                 while current_state != "lobby":
                     pyautogui.press("q")
-                    if debug: print("Pressed Q to return to lobby")
+                    print("Pressed Q to return to lobby")
                     time.sleep(1)
                 self.Lobby_automation.select_brawler(next_brawler_name)
             else:
@@ -160,13 +162,7 @@ class StageManager:
 
         # q btn is over the start btn
         pyautogui.press("q")
-        if debug: print("Pressed Q to start a match")
-
-    def extract_mastery_points(self, screenshot):
-        screenshot = screenshot.crop((147, 358, 1524, 462))
-        detection = find_template_center(screenshot, self.mastery_points_icon)
-        if detection:
-            return True
+        print("Pressed Q to start a match")
 
     def click_brawl_stars(self, frame):
         screenshot = frame.crop((50, 4, 900, 31))
@@ -192,7 +188,9 @@ class StageManager:
             if not found_game_result and time.time() - self.time_since_last_stat_change > 10:
 
                 # will return True if updates trophies, trophies are updated inside Trophy observer
-                found_game_result = self.Trophy_observer.find_game_result(screenshot, current_brawler=self.brawlers_pick_data[0]['brawler'])
+                found_game_result = self.Trophy_observer.find_game_result(screenshot,
+                                                                          current_brawler=self.brawlers_pick_data[0][
+                                                                              'brawler'])
                 self.time_since_last_stat_change = time.time()
                 values = {
                     "trophies": self.Trophy_observer.current_trophies,
@@ -225,11 +223,11 @@ class StageManager:
                         time.sleep(10 ** 5)
                         return
             pyautogui.press("q")
-            if debug: print("Game has ended, pressing Q")
+            print("Game has ended, pressing Q")
             time.sleep(3)
             screenshot = self.Screenshot.take()
             current_state = get_state(screenshot)
-        if debug: print("Game has ended", current_state)
+        print("Game has ended", current_state)
 
     @staticmethod
     def quit_shop():
@@ -254,4 +252,3 @@ class StageManager:
             self.states[state](data)
             return
         self.states[state]()
-
